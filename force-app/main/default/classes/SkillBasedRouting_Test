@@ -1,0 +1,281 @@
+/***********************************************************************
+* Class Name: SkillsBasedRouting_Test                                  * 
+* Author: Alain Corsius                                                *
+* Date: Sep-2019                                                       *    
+* Requirement/Project Name: KLM - CS Flow                              *       
+* Requirement/Project Description:                                     *    
+*                                                                      * 
+* Test class for the invocable class SkillsBasedRouting for routing    *
+* E&M CS cases to the appropriate agent based on their related skills. * 
+*                                                                      *
+* Revision:                                                            *
+* - initial creation (sep 2019; JIRA=SFEMCS-173)                       *
+***********************************************************************/
+@isTest
+private class SkillsBasedRouting_Test {
+
+    static Id rtUnServCaseId = Schema.SObjectType.Case.getRecordTypeInfosByDeveloperName().get(CONSTANTS.RT_CASE_CS_UNSERVICEABLE).getRecordTypeId(); 
+    static Id rtCaseId = Schema.SObjectType.Case.getRecordTypeInfosByDeveloperName().get('Improvement_Project').getRecordTypeId(); 
+
+    static Id troubleshooterQId = [select Id from Group where Type = 'Queue' and Name = 'Troubleshooter' limit 1].Id;
+
+    @testSetup
+    static void setUp() {
+        
+        //List<GlobalSwitch__c> globalSwitch = new List<GlobalSwitch__c>();
+        //globalSwitch.add(new GlobalSwitch__c(isTriggerActive__c= True,isProcessBuilderActive__c=True));
+        //insert globalSwitch;
+
+        List<E_M_CS_Settings__c> emCSSettings = new List<E_M_CS_Settings__c>();
+        emCSSettings.add(new E_M_CS_Settings__c(Hours_To_Drop_Additional_Skill__c = 8));
+        insert emCSSettings;
+
+        List<Account> accounts = Test_Factory.createAccounts(1);
+        for (Account acc : accounts) {
+            acc.RecordTypeId = Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName().get(CONSTANTS.RT_ACCOUNT_CS).getRecordTypeId();
+        }
+        insert accounts;
+        
+        for (Account acc : accounts) {
+            acc.Is_CS_Account__c = true;
+            acc.Hours_To_Push__c = 0;
+        	acc.CS_Active_Aircraft_Type__c = '787;747;A330';
+            acc.Remote_Location__c = 'AMS';
+            acc.Transport_Time__c = 1;
+        }
+        update accounts;
+
+        Case parent = new Case();
+        parent.Status = CONSTANTS.CS_STATUS_NWR;
+        parent.Subject = 'Parent E&M Case';
+        parent.AccountId = accounts[0].id;
+        parent.RecordTypeId = Schema.SObjectType.Case.getRecordTypeInfosByDeveloperName()
+            .get(CONSTANTS.RT_CASE_CS)
+            .getRecordTypeId();
+
+        insert parent;
+
+        // First create a couple US cases with corredct statusses
+        List<Case> testCases = new List<Case>();
+
+        Case c1 = new Case(Subject = '787_Medium_CI_ROC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ROC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'Medium', Push_to_Agent__c = 'CI'); 
+        testCases.add(c1);
+        Case c2 = new Case(Subject = '787_Medium_CI_ETC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ETC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'Medium', Push_to_Agent__c = 'CI'); 
+        testCases.add(c2);
+        Case c3 = new Case(Subject = '787_Medium_CI_EXC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_EXC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'Medium', Push_to_Agent__c = 'CI'); 
+        testCases.add(c3);
+        Case c4 = new Case(Subject = '787_Medium_RA_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'Medium', Push_to_Agent__c = 'RA'); 
+        testCases.add(c4);
+        Case c5 = new Case(Subject = '787_Medium_RA+_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'Medium', Push_to_Agent__c = 'RA+', OwnerId = troubleshooterQId); 
+        testCases.add(c5);
+
+        Case c101 = new Case(Subject = '787_Medium_RA+_AWC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_AWC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'Medium', Push_to_Agent__c = 'RA+', OwnerId = troubleshooterQId); 
+        testCases.add(c101);
+
+        Case c11 = new Case(Subject = '747_Medium_CI_ROC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ROC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '747', Priority = 'Medium', Push_to_Agent__c = 'CI'); 
+        testCases.add(c11);
+        Case c12 = new Case(Subject = '747_Medium_CI_ETC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ETC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '747', Priority = 'Medium', Push_to_Agent__c = 'CI'); 
+        testCases.add(c12);
+        Case c13 = new Case(Subject = '747_Medium_CI_EXC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_EXC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '747', Priority = 'Medium', Push_to_Agent__c = 'CI'); 
+        testCases.add(c13);
+        Case c14 = new Case(Subject = '747_Medium_RA_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '747', Priority = 'Medium', Push_to_Agent__c = 'RA'); 
+        testCases.add(c14);
+        Case c15 = new Case(Subject = '747_Medium_RA+_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '747', Priority = 'Medium', Push_to_Agent__c = 'RA+', OwnerId = troubleshooterQId); 
+        testCases.add(c15);
+        
+
+        Case c21 = new Case(Subject = '737_Low_CI_ROC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ROC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '737', Priority = 'Low', Push_to_Agent__c = 'CI'); 
+        testCases.add(c21);
+        Case c22 = new Case(Subject = '737_Low_CI_ETC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ETC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '737', Priority = 'Low', Push_to_Agent__c = 'CI'); 
+        testCases.add(c22);
+        Case c23 = new Case(Subject = '737_Low_CI_EXC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_EXC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '737', Priority = 'Low', Push_to_Agent__c = 'CI'); 
+        testCases.add(c23);
+        Case c24 = new Case(Subject = '737_Low_RA_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '737', Priority = 'Low', Push_to_Agent__c = 'RA'); 
+        testCases.add(c24);
+        Case c25 = new Case(Subject = '737_Low_RA+_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '737', Priority = 'Low', Push_to_Agent__c = 'RA+', OwnerId = troubleshooterQId); 
+        testCases.add(c25);
+
+        Case c31 = new Case(Subject = '777_High_CI_ROC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ROC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '777', Priority = 'High', Push_to_Agent__c = 'CI'); 
+        testCases.add(c31);
+        Case c32 = new Case(Subject = '777_High_CI_ETC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ETC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '777', Priority = 'High', Push_to_Agent__c = 'CI'); 
+        testCases.add(c32);
+        Case c33 = new Case(Subject = '777_High_CI_EXC', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_EXC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '777', Priority = 'High', Push_to_Agent__c = 'CI'); 
+        testCases.add(c33);
+        Case c34 = new Case(Subject = '777_High_RA_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '777', Priority = 'High', Push_to_Agent__c = 'RA'); 
+        testCases.add(c34);
+        Case c35 = new Case(Subject = '777_High_RA+_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'High', Push_to_Agent__c = 'RA+', OwnerId = troubleshooterQId); 
+        testCases.add(c35);
+
+        Case c41 = new Case(Subject = 'A330_High_RA_CHD', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = 'A330', Priority = 'High', Push_to_Agent__c = 'RA'); 
+        testCases.add(c41);
+
+        // Add 2 cases, one with wrong recordType and one with wrong status
+        Case c99 = new Case(Subject = '777_High_RA_CHD Wrong recordtype', RecordTypeId = rtCaseId, Status = CONSTANTS.CS_STATUS_CHD, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '777', Priority = 'High', Push_to_Agent__c = 'RA', Creation_allowed__c = true); 
+        testCases.add(c99);
+        Case c98 = new Case(Subject = '777_High_CI_OH Wrong Status', RecordTypeId = rtUnServCaseId, Status = 'On Hold', ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'High', Push_to_Agent__c = 'CI'); 
+        testCases.add(c98);
+        Case c97 = new Case(Subject = '787_High_CI_ETC->WFC Wrong Status', RecordTypeId = rtUnServCaseId, Status = CONSTANTS.CS_STATUS_ETC, ParentId = parent.id,
+                           CS_Aircraft_Type__c = '787', Priority = 'High', Push_to_Agent__c = 'CI'); 
+        testCases.add(c97);
+
+        insert testCases;
+
+        // Update status case c97 to Waiting for Customer, so the process builders are executed
+        c97.Status = CONSTANTS.CS_STATUS_WFC;
+        update c97;
+    }
+
+    @isTest
+    static void testOneTroubleshootCase() {
+
+        Case parentCase = [select Id from Case where Subject = 'Parent E&M Case'];
+
+        Case cOneCase = new Case(Subject = '787_Medium_RA_CHD', RecordTypeId = rtUnServCaseId,  ParentId = parentCase.id,
+            Status = CONSTANTS.CS_STATUS_CHD, CS_Aircraft_Type__c = '787', Priority = 'Medium', Push_to_Agent__c = 'RA'); 
+        insert cOneCase;
+
+        cOneCase.Push_to_Agent__c = 'CSO';
+        cOnecase.OwnerId = troubleshooterQId;
+
+        update cOneCase;
+
+        List<Case> resultCases = [select Id, Subject, Status, CS_Aircraft_Type__c, Priority, Push_to_Agent__c, 
+                                  Parent.Account.Remote_Location__c, Owner.Name from Case where Id = :cOnecase.Id];
+
+        List<PendingServiceRouting> penServRout = [select Id, RoutingPriority, WorkItemId, 
+                                (select Id, SkillLevel, Skill.DeveloperName from SkillRequirements) 
+                                from PendingServiceRouting
+                                where WorkItemId = :cOnecase.Id];
+
+        //System.debug('The updated Case = ' + resultCases[0]);  
+        System.assertEquals(0, penServRout.size());
+        if (penServRout.size() > 0) {
+            //System.debug('The updated PendingServiceRouting = ' + penServRout[0]);         
+            if (penServRout[0] != null) { System.debug('The updated SkillRequirements = ' + penServRout[0].Skillrequirements); }
+        } 
+        else { 
+            
+         }
+    }
+
+    @isTest
+    static void testAssigmentsCIRA() {
+
+        List<String> cases = new List<String>();
+
+        for (Case c : [select Id, RecordTypeId from Case where RecordTypeId in (:rtUnServCaseId, :rtCaseId) ]) {
+            cases.add(c.Id);
+        }
+
+       // System.debug('### No. of cases to rout = ' + cases.size());
+
+        User standardUser = Test_Factory.getKLMStandardUser();
+        
+        List<PendingServiceRouting> penServRout1 = [select Id, RoutingPriority, WorkItemId 
+                                                   from PendingServiceRouting];
+        
+        //assert something is present in Omni
+        System.assert(penServRout1.size() > 0);
+
+        System.runAs(standardUser){
+            Test.startTest();
+            SkillsBasedRouting.routeUsingSkills(cases);   
+            Test.stopTest();
+        }
+
+        // Now, do some assertions on the results
+        List<Case> resultCases = [select Id, Subject, Status, CS_Aircraft_Type__c, Priority, Push_to_Agent__c, 
+                                  Parent.Account.Remote_Location__c, Owner.Name from Case where Subject!='Parent E&M Case'];
+
+        for (Case c : resultCases) {
+            //System.debug('#### resultCase = ' + c);
+        }
+
+        List<PendingServiceRouting> penServRout = [select Id, RoutingPriority, WorkItemId, (select Id, SkillLevel, Skill.DeveloperName from SkillRequirements) 
+                                                   from PendingServiceRouting
+                                                   where WorkItemId in :cases];
+
+        
+        List<String> psrIds = new List<String>();  
+        Map<Id, PendingServiceRouting> caseIdPSR = new Map<Id, PendingServiceRouting>();
+
+        Integer noOfSkillReqs = 0;
+
+        for (PendingServiceRouting psr : penServRout) {
+            //system.debug('in test >> case=' + psr.WorkItemId + '; Req.Size=' + psr.Skillrequirements.size());
+            psrIds.add(psr.Id);
+            caseIdPSR.put(psr.WorkItemId, psr);
+
+            noOfSkillReqs += psr.Skillrequirements.size();
+        }
+
+        List<Case> casesWithoutPSR = [select Id, Subject from Case where Id not in (select WorkItemId from PendingServiceRouting)];
+        for (Case c : casesWithoutPSR) {
+           // system.debug('in test >> Cases wihtout PSR: ' + c);
+        }
+
+        System.assertEquals(4, casesWithoutPSR.size());
+        System.assertEquals(cases.size(), resultCases.size());
+        System.assertEquals(resultCases.size() - 3, penServRout.size());
+        System.assertEquals(3 * penServRout.size(), noOfSkillReqs);
+
+        for (Case c : resultCases) {
+
+            if (c.Subject.contains('Wrong')) {
+                System.assertEquals(null, caseIdPSR.get(c.Id), 'Error with case ' + c.Subject);
+                continue;
+            }
+
+            PendingServiceRouting psr = caseIdPSR.get(c.Id);
+
+            List<SkillRequirement> skillReqs = psr.SkillRequirements;
+
+            Decimal skillLevelForCIRA = getSkillLevel4Requierment(c.Push_to_Agent__c.substring(0, 2), psr.SkillRequirements);
+            Decimal skillLevelForType = getSkillLevel4Requierment(c.CS_Aircraft_Type__c, psr.SkillRequirements);
+            Decimal skillLevelForLocation = getSkillLevel4Requierment(c.Parent.Account.Remote_Location__c, psr.SkillRequirements);
+
+            System.assertEquals(c.Push_to_Agent__c == 'RA+' ? 8 : 1, skillLevelForCIRA, 'SkillRequierment for ' + c.Push_to_Agent__c + ' for ' + c.Subject + ' not found!');
+            System.assertEquals(1, skillLevelForType, 'SkillRequierment for ' + c.CS_Aircraft_Type__c + ' for ' + c.Subject + ' not found!');
+            System.assertEquals(1, skillLevelForLocation, 'SkillRequierment for ' + c.Parent.Account.Remote_Location__c + ' for ' + c.Subject + ' not found!');
+
+            Integer priority = c.Priority == 'High' ? 20 : (c.Priority == 'Medium' ? 50 : 90);
+            if (c.Status == CONSTANTS.CS_STATUS_EXC) { priority--; }
+            if (c.Push_to_Agent__c == 'RA+') { priority--; }
+
+            System.assertEquals(priority, psr.RoutingPriority);
+        }
+    }   
+
+    private static Decimal getSkillLevel4Requierment(String skillName, List<SkillRequirement> skillReqs) {
+
+        Decimal result = -1;   
+        for (SkillRequirement sr : skillReqs) {
+            if (sr.Skill.DeveloperName.contains(skillName))  { result = sr.SkillLevel; }
+        }
+        return result;
+    }
+}
