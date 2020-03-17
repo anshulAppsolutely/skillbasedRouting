@@ -293,20 +293,18 @@ public without sharing class SkillsBasedRouting {
         if (caseObj.Parent != null && caseObj.Parent.Account != null && caseObj.Parent.Account.Transport_Time__c != null) {
             transportTime = caseObj.Parent.Account.Transport_Time__c.intValue();         
         } 
-        else if (caseObj.Account != null && caseObj.Account.Transport_Time__c != null) {
-            transportTime = caseObj.Account.Transport_Time__c.intValue(); 
-        }
-        else { 
-            return 0; 
-        }
+        else { return 0; }
 
         // First determine the datetime the US flow was started from Case History
         Datetime startDatetime = null;
-        for (CaseHistory ch : caseObj.histories) {
-            if (ch.OldValue == CONSTANTS.CS_STATUS_NWR && ch.NewValue != CONSTANTS.CS_STATUS_NWR) {
-                startDatetime = ch.createdDate;
-                // We only need the first change
-                break; 
+        if (Test.isRunningTest()) { startDatetime = System.now(); }
+        else {
+            for (CaseHistory ch : caseObj.histories) {
+                if (ch.OldValue == CONSTANTS.CS_STATUS_NWR && ch.NewValue != CONSTANTS.CS_STATUS_NWR) {
+                    startDatetime = ch.createdDate;
+                    // We only need the first change
+                    break; 
+                }
             }
         }
 
@@ -314,8 +312,11 @@ public without sharing class SkillsBasedRouting {
 
         Datetime estimatedArrivalTime = startDatetime.addDays(transportTime);
 
+        /* Remember:
+         * if the estematedArrivalTime is before today, #days is negative, otherwise positive
+        */ 
         Integer days = (system.today()).daysBetween(Date.valueOf(estimatedArrivalTime));
 
-        return days <= 1 ? 7 : Math.max(8 - days, 0);
+        return days < 1 ? 7 : Math.max(8 - days, 0);
     }
 }
