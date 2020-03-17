@@ -1,11 +1,5 @@
 /***********************************************************************
  * Class Name: SkillsBasedRouting                                       *
- * Author: Alain Corsius                                                *
- * Date: Sep-2019                                                       *
- * Requirement/Project Name: KLM - CS Flow                              *
- * Requirement/Project Description:                                     *
- *                                                                      *
- * Invocable class for routing E&M CS cases to the appropriate agent    *
  * based on their related skills.                                       *
  *                                                                      *
  * Revision:                                                            *
